@@ -21,6 +21,33 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+hide_streamlit_style = """
+    <style>
+        #header {visibility: hidden;}
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        .st-emotion-cache-1wbqy5l.e19wr9s00 {display: none !important;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 0.3rem;
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+    max-width: 80%;}
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: .15rem;
+    line-height: 1.25;}   
+</style>
+""", unsafe_allow_html=True)
+
+
 MASTER_DATA_FILE = Path(__file__).with_name("Master_Live.csv")
 AUCTION_DATA_FILE = Path(__file__).with_name("Lelang_Live.csv")
 PRICE_COLUMNS = {
@@ -38,25 +65,25 @@ UNIT_COLUMNS = {
     "Lelang": "units_lelang",
 }
 
-st.markdown("""
-<style>
-.block-container {padding-top: 1.6rem; padding-bottom: 3rem;}
-[data-testid="stSidebar"] {border-right: 1px solid rgba(128, 128, 128, .28);}
-.page-title {font-size: 2rem; font-weight: 700; margin-bottom: .15rem;}
-.page-subtitle {color: var(--text-color); opacity: .72; margin-bottom: 1.4rem;}
-div[data-testid="stMetric"] {
-    border: 1px solid rgba(128, 128, 128, .28);
-    border-radius: 12px;
-    padding: .75rem .9rem;
-    background: var(--secondary-background-color);
-    color: var(--text-color);
-}
-div[data-testid="stMetric"] [data-testid="stMetricLabel"],
-div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-    color: var(--text-color);
-}
-</style>
-""", unsafe_allow_html=True)
+# st.markdown("""
+# <style>
+# .block-container {padding-top: 1.6rem; padding-bottom: 3rem;}
+# [data-testid="stSidebar"] {border-right: 1px solid rgba(128, 128, 128, .28);} 
+# .page-title {font-size: 2rem; font-weight: 700; margin-bottom: .15rem;}
+# .page-subtitle {color: var(--text-color); opacity: .72; margin-bottom: 1.4rem;}
+# div[data-testid="stMetric"] {
+#     border: 1px solid rgba(128, 128, 128, .28);
+#     border-radius: 12px;
+#     padding: .75rem .9rem;
+#     background: var(--secondary-background-color);
+#     color: var(--text-color);
+# }
+# div[data-testid="stMetric"] [data-testid="stMetricLabel"],
+# div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+#     color: var(--text-color);
+# }
+# </style>
+# """, unsafe_allow_html=True)
 
 
 
@@ -206,7 +233,7 @@ def render_data_summary(
     chart_key: str,
 ) -> None:
     """Render KPI dan chart untuk satu sumber tanpa mencampur data sumber lain."""
-    st.markdown(f"### Ringkasan {source_name}")
+    st.markdown(f"### Summary {source_name}")
 
     kpi_1, kpi_2, kpi_3 = st.columns(3)
     kpi_1.metric(f"Total data {source_name}", format_number(len(dataframe)))
@@ -272,11 +299,11 @@ except Exception as exc:
     st.error(str(exc))
     st.stop()
 
-st.markdown('<div class="page-title">Beranda</div>', unsafe_allow_html=True)
-st.markdown(
-    '<div class="page-subtitle">Ringkasan untuk Engine Lelang.</div>',
-    unsafe_allow_html=True,
-)
+st.markdown('<div class="page-title">Home</div>', unsafe_allow_html=True)
+# st.markdown(
+#     '<div class="page-subtitle">Ringkasan untuk Engine Lelang.</div>',
+#     unsafe_allow_html=True,
+# )
 
 # st.markdown("### Ringkasan Sumber Harga")
 # summary = price_summary(master_df)

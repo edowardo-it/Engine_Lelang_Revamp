@@ -7,6 +7,7 @@ from logging.handlers import RotatingFileHandler
 import pandas as pd
 import plotly.express as px
 import streamlit as st
+import textwrap
 
 
 # =========================================================
@@ -18,6 +19,32 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="expanded",
 )
+
+hide_streamlit_style = """
+    <style>
+        #header {visibility: hidden;}
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        .st-emotion-cache-1wbqy5l.e19wr9s00 {display: none !important;}
+    </style>
+"""
+st.markdown(hide_streamlit_style, unsafe_allow_html=True)
+
+st.markdown("""
+<style>
+.block-container {
+    padding-top: 1.5rem;
+    padding-bottom: 0.3rem;
+    padding-left: 0.3rem;
+    padding-right: 0.3rem;
+    max-width: 80%;} 
+.page-title {
+    font-size: 2rem;
+    font-weight: 700;
+    margin-bottom: .15rem;
+    line-height: 1.25;}    
+</style>
+""", unsafe_allow_html=True)
 
 st.markdown(
     """
@@ -32,42 +59,43 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-st.markdown(
-    """
-    <style>
-    .block-container {
-        padding-top: 1.6rem;
-        padding-bottom: 3rem;
-    }
-    [data-testid="stSidebar"] {
-        border-right: 1px solid rgba(128, 128, 128, .28);
-    }
-    .page-title {
-        font-size: 2rem;
-        font-weight: 700;
-        margin-bottom: .15rem;
-        line-height: 1.25;
-    }
-    .page-subtitle {
-        color: var(--text-color);
-        opacity: .72;
-        margin-bottom: 1.4rem;
-    }
-    div[data-testid="stMetric"] {
-        border: 1px solid rgba(128, 128, 128, .28);
-        border-radius: 12px;
-        padding: .75rem .9rem;
-        background: var(--secondary-background-color);
-        color: var(--text-color);
-    }
-    div[data-testid="stMetric"] [data-testid="stMetricLabel"],
-    div[data-testid="stMetric"] [data-testid="stMetricValue"] {
-        color: var(--text-color);
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+# st.markdown(
+#     """
+#     <style>
+#     .block-container {
+#         padding-top: 1.6rem;
+#         padding-bottom: 3rem;
+#     }
+#     [data-testid="stSidebar"] {
+#         border-right: 1px solid rgba(128, 128, 128, .28);
+#     }
+#     .page-title {
+#         font-size: 2rem;
+#         font-weight: 700;
+#         margin-bottom: .15rem;
+#         line-height: 1.25;
+#     }
+#     .page-subtitle {
+#         color: var(--text-color);
+#         opacity: .72;
+#         margin-bottom: 1.4rem;
+#     }
+#     div[data-testid="stMetric"] {
+#         border: 1px solid rgba(128, 128, 128, .28);
+#         border-radius: 12px;
+#         padding: .75rem .9rem;
+#         background: var(--secondary-background-color);
+#         color: var(--text-color);
+#     }
+#     div[data-testid="stMetric"] [data-testid="stMetricLabel"],
+#     div[data-testid="stMetric"] [data-testid="stMetricValue"] {
+#         color: var(--text-color);
+#     }
+    
+#     </style>
+#     """,
+#     unsafe_allow_html=True,
+# )
 
 
 # =========================================================
@@ -926,6 +954,15 @@ if grade_column in filtered.columns:
             )
         )
         grade_summary["Contoh note"] = grade_summary["Grade"].map(grade_note_map).fillna("-")
+        # Wrap long notes so hover tooltip shows nicely with line breaks
+        def _wrap_note(n, width=80):
+            if pd.isna(n) or n == "-":
+                return n
+            s = str(n)
+            wrapped = textwrap.fill(s, width=width)
+            return wrapped.replace("\n", "<br>")
+
+        grade_summary["Contoh note"] = grade_summary["Contoh note"].apply(_wrap_note)
         grade_summary["Grade"] = pd.Categorical(
             grade_summary["Grade"], categories=grade_order, ordered=True
         )
@@ -958,6 +995,7 @@ if grade_column in filtered.columns:
                 "Jumlah data: %{customdata[1]}<br>"
                 "Contoh note: %{customdata[2]}<extra></extra>"
             ),
+            hoverlabel=dict(align="left", namelength=0),
         )
         grade_fig.update_layout(
             xaxis_title="Grade kondisi",
