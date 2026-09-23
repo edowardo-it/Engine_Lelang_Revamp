@@ -274,7 +274,7 @@ except Exception as exc:
 
 st.markdown('<div class="page-title">Beranda</div>', unsafe_allow_html=True)
 st.markdown(
-    '<div class="page-subtitle">Ringkasan untuk masing-masing Engine OTR Used Car dan Engine Lelang.</div>',
+    '<div class="page-subtitle">Ringkasan untuk Engine Lelang.</div>',
     unsafe_allow_html=True,
 )
 
@@ -287,16 +287,6 @@ st.markdown(
 #     display["Total Unit"] = display["Total Unit"].apply(format_number)
 #     st.dataframe(display, hide_index=True)
 
-render_data_summary(
-    master_df,
-    source_name="Engine OTR Used Car",
-    brand_column="Brand",
-    model_column="Model",
-    year_column="Year",
-    chart_key="master_live",
-)
-
-st.divider()
 
 render_data_summary(
     auction_df,
@@ -314,4 +304,4 @@ if skipped_auction_rows > 0:
     )
 
 st.markdown("### Cara Menggunakan")
-st.info("Gunakan **Engine OTR Used Car** untuk benchmark harga pasar used car, **Engine Lelang** untuk rekomendasi harga lelang based on Data Aplikasi Lelang, IBID dan JBA. Menu **Feedback** untuk mencatat evaluasi pengguna.")
+st.info("Gunakan **Engine Lelang** untuk rekomendasi harga lelang based on Data Aplikasi Lelang, IBID dan JBA. Menu **Feedback** untuk mencatat evaluasi pengguna.")
