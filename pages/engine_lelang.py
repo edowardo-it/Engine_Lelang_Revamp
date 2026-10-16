@@ -771,12 +771,11 @@ detail_columns = [
     "CC_Norm",
     "Transmission_Norm",
     "KodeDaerah",
-    "saleprice",
     "SaleDate",
     "kilometer1",
     "grade_overrall_csis",
-    "BalaiLelang",
     "lokasi",
+    "saleprice",
 ]
 
 detail_display = detail_display[
@@ -792,10 +791,9 @@ detail_display = detail_display.rename(
         "CC_Norm": "CC",
         "Transmission_Norm": "Transmisi",
         "saleprice": "Harga Lelang",
-        "SaleDate": "Tanggal Lelang",
-        "kilometer1": "Kilometer",
+        "SaleDate": "TglLelang",
+        "kilometer1": "Km",
         "grade_overrall_csis": "Grade",
-        "BalaiLelang": "Balai Lelang",
         "lokasi": "Lokasi",
     }
 )
