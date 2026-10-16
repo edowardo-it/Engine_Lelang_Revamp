@@ -502,52 +502,6 @@ def random_notes_by_grade(dataframe, grade_column, note_column, grade_order):
     return sampled_notes.set_index("Grade")["Contoh note"].to_dict()
 
 
-def mean_unique(series):
-    """Rata-ratakan nilai referensi unik agar duplikasi transaksi tidak membobotinya."""
-    values = pd.to_numeric(series, errors="coerce").dropna().drop_duplicates()
-    return values.mean() if not values.empty else pd.NA
-
-
-def summarize_jba_ibid_detail(matched_master):
-    """Ringkas transaksi berdasarkan identitas spesifikasi kendaraan yang sama."""
-    detail = matched_master.copy()
-    model_parts = (
-        detail[["Model", "Type"]]
-        .fillna("")
-        .astype(str)
-        .apply(
-            lambda column: column.str.replace(",", "", regex=False)
-            .str.replace(r"\s+", " ", regex=True)
-            .str.strip()
-        )
-    )
-    detail["Model"] = model_parts.agg(
-        lambda values: " ".join(value for value in values if value),
-        axis=1,
-    )
-    detail = detail[detail["Model"].ne("")].copy()
-
-    return (
-        detail.groupby(
-            ["Brand", "Model", "Year", "Transmission", "CC"],
-            as_index=False,
-            dropna=False,
-        )
-        .agg(
-            **{
-                "Rata-rata harga JBA": ("price_curr", "mean"),
-                "Rata-rata harga pasar IBID": ("ibid_hp", mean_unique),
-                "RV IBID (%)": ("ibid_rv", mean_unique),
-            },
-        )
-        .rename(columns={"Year": "Tahun", "Transmission": "Transmisi"})
-        .sort_values(
-            ["Brand", "Model", "Tahun", "Transmisi", "CC"],
-            kind="stable",
-        )
-    )
-
-
 def filter_master_by_selection(master, selection):
     """Terapkan parameter kendaraan terpilih ke master JBA/IBID."""
     filtered_master = master.copy()
@@ -579,118 +533,6 @@ def filter_master_by_selection(master, selection):
         ]
 
     return filtered_master.copy()
-
-
-def render_jba_ibid_analysis(matched_master):
-    """Tampilkan ringkasan dan visualisasi master JBA/IBID yang sudah cocok."""
-    st.markdown("## Hasil Matching Data JBA/IBID")
-    st.caption(
-        "Data di bawah memakai parameter kendaraan yang sama dengan filter di atas. "
-        "Harga IBID pada file master dikonversi dari juta rupiah ke rupiah."
-    )
-
-    if matched_master.empty:
-        st.info("Untuk model ini belum tersedia data pada IBID dan JBA.")
-        return
-
-    jba_prices = matched_master["price_curr"].dropna()
-    jba_prices = jba_prices[jba_prices > 0]
-
-    ibid_columns = [
-        "Brand",
-        "Model",
-        "Year",
-        "Transmission",
-        "CC",
-        "Type",
-        "ibid_hp",
-        "ibid_rv",
-    ]
-    # Satu spesifikasi dapat berulang untuk beberapa transaksi JBA. Hilangkan
-    # duplikasi agar nilai referensi IBID tidak terbobot oleh jumlah transaksi.
-    ibid_reference = matched_master[ibid_columns].drop_duplicates()
-
-    ibid_hp = ibid_reference.loc[ibid_reference["ibid_hp"] > 0, "ibid_hp"] * 1_000_000
-    ibid_rv = ibid_reference.loc[ibid_reference["ibid_rv"] > 0, "ibid_rv"]
-
-    jba_median = jba_prices.median() if not jba_prices.empty else pd.NA
-    ibid_hp_median = ibid_hp.median() if not ibid_hp.empty else pd.NA
-    ibid_rv_median = ibid_rv.median() if not ibid_rv.empty else pd.NA
-    total_jba_ibid = len(jba_prices) + len(ibid_hp)
-
-    kpi_1, kpi_2, kpi_3, kpi_4 = st.columns(4)
-    kpi_1.metric(
-        "Total data JBA & IBID",
-        f"{total_jba_ibid:,}".replace(",", "."),
-    )
-    kpi_2.metric("Median harga JBA", compact_money(jba_median))
-    kpi_3.metric("Median harga pasar IBID", compact_money(ibid_hp_median))
-    kpi_4.metric(
-        "Median RV IBID",
-        "-" if pd.isna(ibid_rv_median) else f"{ibid_rv_median:.2f}%".replace(".", ","),
-    )
-
-    comparison_rows = [
-        {"Sumber harga": "harga Pasar JBA", "Harga": jba_median},
-        {"Sumber harga": "harga Pasar IBID", "Harga": ibid_hp_median},
-    ]
-    comparison = pd.DataFrame(comparison_rows).dropna(subset=["Harga"])
-
-    if not comparison.empty:
-        comparison["Label harga"] = comparison["Harga"].apply(compact_money)
-        comparison_chart = px.bar(
-            comparison,
-            x="Sumber harga",
-            y="Harga",
-            color="Sumber harga",
-            text="Label harga",
-            title="Perbandingan median harga JBA dan IBID",
-            color_discrete_map={
-                "JBA - harga transaksi": "#2563eb",
-                "IBID - harga pasar": "#f59e0b",
-            },
-        )
-        comparison_chart.update_traces(
-            textposition="outside",
-            hovertemplate=(
-                "<b>%{x}</b><br>Harga: Rp %{y:,.0f}<extra></extra>"
-            ),
-        )
-        comparison_chart.update_layout(
-            xaxis_title=None,
-            yaxis_title="Harga (Rp)",
-            showlegend=False,
-        )
-        st.plotly_chart(comparison_chart)
-
-    with st.expander("Lihat detail hasil matching JBA/IBID"):
-        detail = summarize_jba_ibid_detail(matched_master)
-        detail["Rata-rata harga pasar IBID"] *= 1_000_000
-        for price_column in [
-            "Rata-rata harga JBA",
-            "Rata-rata harga pasar IBID",
-        ]:
-            detail[price_column] = detail[price_column].apply(compact_money)
-        detail["RV IBID (%)"] = detail["RV IBID (%)"].apply(
-            lambda value: "-" if pd.isna(value) else f"{float(value):.2f}%"
-        )
-        detail = detail[
-            [
-                "Brand",
-                "Model",
-                "Tahun",
-                "Transmisi",
-                "CC",
-                "Rata-rata harga JBA",
-                "Rata-rata harga pasar IBID",
-                "RV IBID (%)",
-            ]
-        ]
-        st.dataframe(
-            detail,
-            hide_index=True,
-            height=400,
-        )
 
 
 # =========================================================
@@ -821,7 +663,12 @@ st.markdown(
     unsafe_allow_html=True,
 )
 st.markdown(
-    '<div class="page-subtitle">Analisis histori harga lelang dan referensi kendaraan comparable dari JBA serta IBID.</div>',
+    '<div class="page-subtitle">Analisis histori harga lelang BCA Finance.</div>',
+    unsafe_allow_html=True,
+)
+
+st.markdown(
+    '<div class="page-subtitle">Hanya sebagai alat bantu, sebaiknya decision tetap mempertimbangkan kilometer, grade kondisi, recent transaksi, dan lokasi/balai lelang.</div>',
     unsafe_allow_html=True,
 )
 
@@ -868,9 +715,6 @@ auction_q3 = auction.quantile(0.75)
 auction_min = auction.min()
 auction_max = auction.max()
 
-# Prototype rekomendasi single-source: median transaksi comparable.
-suggested_floor = auction_median
-
 
 # =========================================================
 # METRICS
@@ -885,130 +729,9 @@ k3.metric("Rata-rata Harga Lelang", compact_money(auction_mean))
 
 
 # =========================================================
-# RECOMMENDATION
-# =========================================================
-st.markdown("### Prototype Rekomendasi")
-
-st.success(
-    f"**Indikasi harga dasar lelang: {compact_money(suggested_floor)}**\n\n"
-)
-
-st.caption(
-    f"Engine lelang hanya sebagai alat bantu, sebaiknya decision tetap mempertimbangkan kilometer, "
-    "grade kondisi, recency transaksi, dan lokasi/balai lelang."
-)
-
-
-# =========================================================
-# PRICE SUMMARY CHART
-# =========================================================
-chart_df = pd.DataFrame(
-    {
-        "Statistik": ["Q1", "Median", "Q3"],
-        "Harga": [auction_q1, auction_median, auction_q3],
-    }
-)
-
-fig = px.bar(
-    chart_df,
-    x="Statistik",
-    y="Harga",
-    text=chart_df["Harga"].apply(compact_money),
-    title="Rentang Harga Lelang Kendaraan Comparable",
-)
-fig.update_traces(textposition="outside")
-fig.update_layout(yaxis_title="Harga Lelang", xaxis_title=None)
-st.plotly_chart(fig)
-
-
-# =========================================================
-# GRADE PRICE ANALYSIS
-# =========================================================
-grade_column = "grade_overrall_csis"
-note_column = "note_csis"
-grade_order = ["GOOD", "VERY_GOOD", "BAD"]
-
-if grade_column in filtered.columns:
-    grade_analysis = filtered[[grade_column, PRICE_COLUMN]].copy()
-    grade_analysis["Grade"] = normalized_grade(grade_analysis[grade_column])
-    grade_analysis = grade_analysis[grade_analysis["Grade"].isin(grade_order)]
-
-    if note_column in filtered.columns:
-        grade_note_map = random_notes_by_grade(
-            filtered,
-            grade_column,
-            note_column,
-            grade_order,
-        )
-    else:
-        grade_note_map = {}
-
-    if not grade_analysis.empty:
-        grade_summary = (
-            grade_analysis.groupby("Grade", as_index=False, observed=True)
-            .agg(
-                **{
-                    "Rata-rata Harga Lelang": (PRICE_COLUMN, "mean"),
-                    "Jumlah Data": (PRICE_COLUMN, "size"),
-                }
-            )
-        )
-        grade_summary["Contoh note"] = grade_summary["Grade"].map(grade_note_map).fillna("-")
-        # Wrap long notes so hover tooltip shows nicely with line breaks
-        def _wrap_note(n, width=80):
-            if pd.isna(n) or n == "-":
-                return n
-            s = str(n)
-            wrapped = textwrap.fill(s, width=width)
-            return wrapped.replace("\n", "<br>")
-
-        grade_summary["Contoh note"] = grade_summary["Contoh note"].apply(_wrap_note)
-        grade_summary["Grade"] = pd.Categorical(
-            grade_summary["Grade"], categories=grade_order, ordered=True
-        )
-        grade_summary = grade_summary.sort_values("Grade")
-        grade_summary["Label Harga"] = grade_summary["Rata-rata Harga Lelang"].apply(
-            compact_money
-        )
-
-        st.markdown("### Rata-rata harga lelang per grade")
-        grade_fig = px.bar(
-            grade_summary,
-            x="Grade",
-            y="Rata-rata Harga Lelang",
-            color="Grade",
-            text="Label Harga",
-            category_orders={"Grade": grade_order},
-            color_discrete_map={
-                "GOOD": "#16a34a",
-                "VERY_GOOD": "#2563eb",
-                "BAD": "#dc2626",
-            },
-            title="Rata-rata harga lelang berdasarkan grade kondisi (hover pada barchart untuk contoh note)",
-            custom_data=["Label Harga", "Jumlah Data", "Contoh note"],
-        )
-        grade_fig.update_traces(
-            textposition="outside",
-            hovertemplate=(
-                "<b>Grade: %{x}</b><br>"
-                "Rata-rata harga: %{customdata[0]}<br>"
-                "Jumlah data: %{customdata[1]}<br>"
-                "Contoh note: %{customdata[2]}<extra></extra>"
-            ),
-            hoverlabel=dict(align="left", namelength=0),
-        )
-        grade_fig.update_layout(
-            xaxis_title="Grade kondisi",
-            yaxis_title="Rata-rata harga lelang",
-            showlegend=False,
-        )
-        st.plotly_chart(grade_fig)
-
-
-# =========================================================
 # DETAIL DATA
 # =========================================================
-st.markdown("### Detail Data")
+st.markdown("### Detail Data Lelang")
 
 detail_display = filtered.copy()
 
@@ -1085,6 +808,105 @@ st.dataframe(
 
 
 # =========================================================
-# JBA / IBID REFERENCE
+# PRICE SUMMARY CHART
 # =========================================================
-render_jba_ibid_analysis(matched_master)
+chart_df = pd.DataFrame(
+    {
+        "Statistik": ["Q1", "Median", "Q3"],
+        "Harga": [auction_q1, auction_median, auction_q3],
+    }
+)
+
+fig = px.bar(
+    chart_df,
+    x="Statistik",
+    y="Harga",
+    text=chart_df["Harga"].apply(compact_money),
+    title="Rentang Harga Lelang Kendaraan per Kuartil",
+)
+fig.update_traces(textposition="outside")
+fig.update_layout(yaxis_title="Harga Lelang", xaxis_title=None)
+st.plotly_chart(fig)
+
+
+# =========================================================
+# GRADE PRICE ANALYSIS
+# =========================================================
+grade_column = "grade_overrall_csis"
+note_column = "note_csis"
+grade_order = ["GOOD", "VERY_GOOD", "BAD"]
+
+if grade_column in filtered.columns:
+    grade_analysis = filtered[[grade_column, PRICE_COLUMN]].copy()
+    grade_analysis["Grade"] = normalized_grade(grade_analysis[grade_column])
+    grade_analysis = grade_analysis[grade_analysis["Grade"].isin(grade_order)]
+
+    if note_column in filtered.columns:
+        grade_note_map = random_notes_by_grade(
+            filtered,
+            grade_column,
+            note_column,
+            grade_order,
+        )
+    else:
+        grade_note_map = {}
+
+    if not grade_analysis.empty:
+        grade_summary = (
+            grade_analysis.groupby("Grade", as_index=False, observed=True)
+            .agg(
+                **{
+                    "Rata-rata Harga Lelang": (PRICE_COLUMN, "mean"),
+                    "Jumlah Data": (PRICE_COLUMN, "size"),
+                }
+            )
+        )
+        grade_summary["Contoh note"] = grade_summary["Grade"].map(grade_note_map).fillna("-")
+        # Wrap long notes so hover tooltip shows nicely with line breaks
+        def _wrap_note(n, width=80):
+            if pd.isna(n) or n == "-":
+                return n
+            s = str(n)
+            wrapped = textwrap.fill(s, width=width)
+            return wrapped.replace("\n", "<br>")
+
+        grade_summary["Contoh note"] = grade_summary["Contoh note"].apply(_wrap_note)
+        grade_summary["Grade"] = pd.Categorical(
+            grade_summary["Grade"], categories=grade_order, ordered=True
+        )
+        grade_summary = grade_summary.sort_values("Grade")
+        grade_summary["Label Harga"] = grade_summary["Rata-rata Harga Lelang"].apply(
+            compact_money
+        )
+
+        grade_fig = px.bar(
+            grade_summary,
+            x="Grade",
+            y="Rata-rata Harga Lelang",
+            color="Grade",
+            text="Label Harga",
+            category_orders={"Grade": grade_order},
+            color_discrete_map={
+                "GOOD": "#16a34a",
+                "VERY_GOOD": "#2563eb",
+                "BAD": "#dc2626",
+            },
+            title="Rata-rata harga lelang berdasarkan grade kondisi (hover pada barchart untuk contoh note)",
+            custom_data=["Label Harga", "Jumlah Data", "Contoh note"],
+        )
+        grade_fig.update_traces(
+            textposition="outside",
+            hovertemplate=(
+                "<b>Grade: %{x}</b><br>"
+                "Rata-rata harga: %{customdata[0]}<br>"
+                "Jumlah data: %{customdata[1]}<br>"
+                "Contoh note: %{customdata[2]}<extra></extra>"
+            ),
+            hoverlabel=dict(align="left", namelength=0),
+        )
+        grade_fig.update_layout(
+            xaxis_title="Grade kondisi",
+            yaxis_title="Rata-rata harga lelang",
+            showlegend=False,
+        )
+        st.plotly_chart(grade_fig)
